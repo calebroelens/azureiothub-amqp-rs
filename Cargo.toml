@@ -4,3 +4,9 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Caleb Roelens"]
 description = "Azure Iot Hub AMQP client crate package using ntex-amqp"
+
+[dependencies.ntex-amqp]
+version = "0.6.3"
+
+[dependencies.ntex-amqp-codec]
+version = "0.8.1"
