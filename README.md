@@ -1,7 +1,7 @@
 # azureiothub-amqp-rs
 Azure Iot Hub &amp; AMQP implementation in Rust
 ## Contains following modules
-* ServiceClient (allows policys)
+* ServiceClient (allows policies)
 * DeviceClient
 ## Modules:
 * Sas token gen
