@@ -21,6 +21,7 @@ mod tests{
             Ok(ok) => {
                 // Ok:
                 println!("Ok");
+                let token = ok.token();
             }
             Err(err) => {
                 println!("Err: {}", err);

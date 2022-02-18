@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::ops::Add;
 use base64::DecodeError;
 use chrono::{DateTime, Duration, Utc};
-use hmac::{Hmac, NewMac};
+use hmac::{Hmac, Mac, NewMac};
 use hmac::crypto_mac::InvalidKeyLength;
 use sha2::Sha256;
 
@@ -16,6 +16,12 @@ pub trait SasToken {
             return Result::Err(SasTokenCreationFailure::PrimaryKeyInvalid(primary_key_check));
         }
         let hub_url = Self::hub_url(hub_name, device);
+        let expire_timestamp = Self::future_timestamp(days_valid);
+        let to_sign = Self::sign_hub_url(hub_url, expire_timestamp);
+        // Start generation
+        let decoded_key = base64::decode(primary_key).unwrap();
+        let mut hmac_key: Hmac<Sha256> = Hmac::new_from_slice(&decoded_key).unwrap();
+        hmac_key.update(to_sign.as_bytes());
         unimplemented!()
     }
     fn token(&self) -> &'static str;
@@ -44,7 +50,7 @@ pub trait SasToken {
         let add_days = Duration::days(days_valid);
         time_now.add(add_days).timestamp()
     }
-    fn sign_hub_url(hub_url: &'static str, expire_timestamp: i64) -> String{
+    fn sign_hub_url(hub_url: String, expire_timestamp: i64) -> String{
         format!("{}\n{}", hub_url, expire_timestamp)
     }
     fn hub_url(hub_name: &'static str, target: Option<&'static str>) -> String;
