@@ -7,10 +7,18 @@ use hmac::{Hmac, NewMac};
 use hmac::crypto_mac::InvalidKeyLength;
 use sha2::Sha256;
 
-trait SasToken{
-    fn new(primary_key: &'static str, days_valid: i64, hub_name: &'static str, target: &'static str) -> Self;
+pub trait SasToken {
+    fn new(primary_key: &'static str, days_valid: i64, hub_name: &'static str, device: Option<&'static str>, policy: Option<&'static str>) -> Result<Box::<Self>, SasTokenCreationFailure>
+    {
+        let primary_key_check =  Self::primary_token_check(primary_key);
+        if primary_key_check != PrimaryKeyCheckResult::OK{
+            // The primary key is invalid
+            return Result::Err(SasTokenCreationFailure::PrimaryKeyInvalid(primary_key_check));
+        }
+        let hub_url = Self::hub_url(hub_name, device);
+        unimplemented!()
+    }
     fn token(&self) -> &'static str;
-    fn days_valid(&self) -> i64;
     fn primary_token_check(primary_key: &str) -> PrimaryKeyCheckResult{
         let check_token_format = base64::decode(primary_key);
         return match check_token_format {
@@ -31,35 +39,38 @@ trait SasToken{
             }
         };
     }
-    fn future_timestamp(&self) -> i64 {
+    fn future_timestamp(days_valid: i64) -> i64 {
         let time_now = chrono::offset::Utc::now();
-        let add_days = Duration::days(self.days_valid());
+        let add_days = Duration::days(days_valid);
         time_now.add(add_days).timestamp()
     }
-    fn to_sign_hub_url(&self, expire_timestamp: i64) -> String{
-        format!("{}\n{}", self.hub_url(), expire_timestamp)
+    fn sign_hub_url(hub_url: &'static str, expire_timestamp: i64) -> String{
+        format!("{}\n{}", hub_url, expire_timestamp)
     }
-    fn hub_url(&self) -> String;
+    fn hub_url(hub_name: &'static str, target: Option<&'static str>) -> String;
 }
 
 pub struct DeviceToken{
     token: &'static str,
     days_valid: i64,
-    target: &'static str,
+    device: &'static str,
     hub_name: &'static str,
 }
 
 
 impl SasToken for DeviceToken{
-    fn new(primary_key: &'static str, days_valid: i64, hub_name: &'static str, target: &'static str) -> Self {
-        todo!()
-    }
     // Property getter
     fn token(&self) -> &'static str { return self.token; }
-    fn days_valid(&self) -> i64 { return self.days_valid; }
+    fn hub_url(hub_name: &'static str, device: Option<&'static str>) -> String {
+        if device.is_none()
+        {
+            panic!("Target cannot be None for DeviceToken");
+        }
+        else
+        {
+            format!("{}.azure-devices.net%2Fdevices%2F{}", hub_name, device.unwrap())
+        }
 
-    fn hub_url(&self) -> String {
-        format!("{}.azure-devices.net%2Fdevices%2F{}", self.hub_name, self.target)
     }
 }
 
@@ -67,24 +78,52 @@ pub struct ServiceToken{
     token: &'static str,
     days_valid: i64,
     hub_name: &'static str,
-    target: &'static str
+    policy: &'static str
 }
 
 impl SasToken for ServiceToken{
-    fn new(primary_key: &'static str, days_valid: i64, hub_name: &'static str, target: &'static str) -> Self {
-        todo!()
-    }
     // Property getter
     fn token(&self) -> &'static str { return self.token; }
-    fn days_valid(&self) -> i64 { return self.days_valid; }
 
-    fn hub_url(&self) -> String {
-        format!("{}.azure-devices.net", self.hub_name)
+    fn hub_url(hub_name: &'static str, target: Option<&'static str>) -> String {
+        format!("{}.azure-devices.net", hub_name)
     }
 }
 
+#[derive(Eq, PartialEq)]
 pub enum PrimaryKeyCheckResult{
     DecodeFailure(base64::DecodeError),
     InvalidKeyLength,
     OK
 }
+
+impl Display for PrimaryKeyCheckResult{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PrimaryKeyCheckResult::DecodeFailure(err) => {
+                write!(f, "{}: {}", "DecodeFailure", err)
+            }
+            PrimaryKeyCheckResult::InvalidKeyLength => {
+                write!(f, "{}", "InvalidKeyLength")
+            }
+            PrimaryKeyCheckResult::OK => {
+                write!(f, "{}", "OK")
+            }
+        }
+    }
+}
+
+pub enum SasTokenCreationFailure{
+    PrimaryKeyInvalid(PrimaryKeyCheckResult)
+}
+
+impl Display for SasTokenCreationFailure{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self{
+            SasTokenCreationFailure::PrimaryKeyInvalid(err) => {
+                write!(f, "{}: {}", "PrimaryKeyInvalid", err)
+            }
+        }
+    }
+}
+
