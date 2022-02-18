@@ -1,0 +1,6 @@
+[package]
+name = "amqpiothub"
+version = "0.1.0"
+edition = "2021"
+authors = ["Caleb Roelens"]
+description = "Azure Iot Hub AMQP client crate package using ntex-amqp"
